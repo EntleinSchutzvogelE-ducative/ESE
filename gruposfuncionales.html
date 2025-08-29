@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Atrapa los grupos funcionales (8 moléculas)</title>
+
+<!-- Favicon en pestaña -->
+<link rel="icon" type="image/png" href="favicon.png" sizes="32x32">
+
+<style>
+  :root{--bg:#2f3136;--panel:#3a3d44;--ink:#fff;--muted:#c9c9c9;--accent:#59b373;--error:#e06262}
+  html,body{height:100%}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{padding:18px 20px}
+  h1{margin:0 0 .25rem;font-weight:800}
+  .wrap{max-width:960px;margin:0 auto;padding:0 16px 28px}
+  .card{background:var(--panel);border:1px solid #2a2d33;border-radius:14px;padding:22px}
+  .toprow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .pill{background:#27292e;border:1px solid #202226;border-radius:999px;padding:6px 10px;color:var(--muted);font-size:.9rem}
+  .formula{font-size:2.3rem;line-height:1.2;text-align:center;margin:16px 0 8px;font-variant-numeric:lining-nums}
+  .hint{opacity:.8;text-align:center;margin-bottom:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  button.choice{background:#4a4f58;border:1px solid #3f444c;color:#fff;border-radius:12px;padding:12px;cursor:pointer;text-align:left}
+  button.choice:hover{filter:brightness(1.06)}
+  button.choice.correct{outline:2px solid var(--accent)}
+  button.choice.wrong{outline:2px solid var(--error)}
+  .actions{display:flex;gap:10px;justify-content:center;margin-top:16px}
+  .btn{background:#657085;border:0;border-radius:10px;color:#fff;padding:10px 14px;cursor:pointer}
+  .btn:hover{filter:brightness(1.07)}
+  .muted{opacity:.8}
+  .result{margin-top:18px}
+  .mistakes{margin-top:10px}
+  .mistakes li{margin:6px 0}
+  footer{opacity:.75;text-align:center;padding:14px}
+  sub{font-size:.7em}
+
+  /* Sello inferior derecho */
+  .corner-logo {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    width: 120px;   /* tamaño grande en PC */
+    height: auto;
+    z-index: 1000;
+    opacity: 0.9;
+    transition: transform .2s ease, opacity .2s ease;
+  }
+  .corner-logo:hover {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+
+  /* versión más pequeña en móviles */
+  @media (max-width: 600px) {
+    .corner-logo {
+      width: 80px;
+    }
+  }
+</style>
+</head>
+<body>
+  <header class="wrap">
+    <h1>Atrapa los grupos funcionales</h1>
+    <div class="muted">Conjunto: 8 moléculas (correspondientes a los modelos físicos).</div>
+  </header>
+
+  <main class="wrap">
+    <div class="card" id="card">
+      <div class="toprow">
+        <div class="pill" id="progress">1 / 8</div>
+        <div class="pill" id="score">Puntaje: 0</div>
+      </div>
+
+      <div class="formula" id="formula">CH<sub>3</sub>–CH<sub>2</sub>–OH</div>
+      <div class="hint" id="hint">Selecciona el grupo funcional correcto</div>
+
+      <div class="grid" id="choices"></div>
+
+      <div class="actions">
+        <button class="btn" id="nextBtn" disabled>Siguiente ▸</button>
+        <button class="btn" id="restartBtn">Reiniciar</button>
+      </div>
+
+      <div class="result" id="result"></div>
+      <ul class="mistakes" id="mistakes"></ul>
+    </div>
+  </main>
+
+  <footer>© Entlein & Schutzvogel E-ducative</footer>
+
+  <!-- Favicon visible en la esquina inferior derecha -->
+  <img src="favicon.png" alt="Entlein – Schutzvogel" class="corner-logo">
+
+<script>
+/* ========= Datos ========= */
+const GROUPS = [
+  { key:"Alcohol", label:"Alcohol " },
+  { key:"Éter", label:"Éter " },
+  { key:"Aldehído", label:"Aldehído " },
+  { key:"Cetona", label:"Cetona " },
+  { key:"Ácido carboxílico", label:"Ácido carboxílico " },
+  { key:"Éster", label:"Éster " },
+  { key:"Amina", label:"Amina " },
+  { key:"Amida", label:"Amida " },
+];
+
+const MOLECULES = [
+  { name:"Etanol", formula:"CH3–CH2–OH", group:"Alcohol" },
+  { name:"Dimetil éter", formula:"CH3–O–CH3", group:"Éter" },
+  { name:"Etanal", formula:"CH3–CHO", group:"Aldehído"},
+  { name:"Acetona", formula:"CH3–CO–CH3", group:"Cetona"  },
+  { name:"Ácido etanoico", formula:"CH3–COOH", group:"Ácido carboxílico" },
+  { name:"Metanoato de metilo", formula:"H–COO–CH3", group:"Éster"   },
+  { name:"Metilamina", formula:"CH3–NH2", group:"Amina"   },
+  { name:"Etanoamida", formula:"CH3–CONH2", group:"Amida" },
+];
+
+/* ========= Utilidades ========= */
+const subify = s => s
+  .replace(/2/g,"<sub>2</sub>").replace(/3/g,"<sub>3</sub>")
+  .replace(/4/g,"<sub>4</sub>").replace(/5/g,"<sub>5</sub>")
+  .replace(/6/g,"<sub>6</sub>").replace(/7/g,"<sub>7</sub>")
+  .replace(/8/g,"<sub>8</sub>").replace(/9/g,"<sub>9</sub>");
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+/* ========= Estado ========= */
+let deck = [];
+let idx = 0;
+let score = 0;
+let answered = false;
+let mistakes = [];
+
+/* ========= DOM ========= */
+const elFormula = document.getElementById("formula");
+const elChoices = document.getElementById("choices");
+const elNext = document.getElementById("nextBtn");
+const elRestart = document.getElementById("restartBtn");
+const elProgress = document.getElementById("progress");
+const elScore = document.getElementById("score");
+const elResult = document.getElementById("result");
+const elMistakes = document.getElementById("mistakes");
+
+/* ========= Lógica ========= */
+function start(){
+  deck = shuffle(MOLECULES.slice());
+  idx = 0; score = 0; answered = false; mistakes = [];
+  elResult.textContent = "";
+  elMistakes.innerHTML = "";
+  renderCard();
+}
+
+function renderCard(){
+  const m = deck[idx];
+  elProgress.textContent = `${idx+1} / ${deck.length}`;
+  elScore.textContent = `Puntaje: ${score}`;
+  elFormula.innerHTML = subify(m.formula);
+  elResult.textContent = "";
+  elMistakes.innerHTML = "";
+  elNext.disabled = true;
+  answered = false;
+
+  elChoices.innerHTML = "";
+  const options = shuffle(GROUPS.slice());
+  options.forEach(opt=>{
+    const btn = document.createElement("button");
+    btn.className = "choice";
+    btn.textContent = opt.label;
+    btn.addEventListener("click", ()=>choose(opt.key, btn));
+    elChoices.appendChild(btn);
+  });
+}
+
+function choose(chosenKey, btn){
+  if(answered) return;
+  answered = true;
+
+  const m = deck[idx];
+  const children = [...elChoices.children];
+  children.forEach(b=>{
+    const key = GROUPS.find(g => b.textContent.trim() === g.label.trim()).key;
+    if(key === m.group) b.classList.add("correct");
+    if(b === btn && key !== m.group) b.classList.add("wrong");
+    b.disabled = true;
+  });
+
+  if(chosenKey === m.group){
+    score++;
+    elResult.innerHTML = `&#128512; Correcto: <strong>${m.name}</strong> es <strong>${m.group}</strong>.`;
+  } else {
+    elResult.innerHTML = `&#128532; Incorrecto. <strong>${m.name}</strong> es <strong>${m.group}</strong>.`;
+    mistakes.push({ name: m.name, formula: m.formula, correct: m.group, chosen: chosenKey });
+  }
+  elScore.textContent = `Puntaje: ${score}`;
+  elNext.disabled = false;
+}
+
+elNext.addEventListener("click", ()=>{
+  if(idx < deck.length - 1){
+    idx++; renderCard();
+  } else {
+    finish();
+  }
+});
+
+elRestart.addEventListener("click", start);
+
+function finish(){
+  elChoices.innerHTML = "";
+  elNext.disabled = true;
+  elResult.innerHTML = `Resultado final: <strong>${score}/${deck.length}</strong>`;
+  if(mistakes.length){
+    elMistakes.innerHTML = "<strong>Revisa:</strong>";
+    mistakes.forEach(m=>{
+      const li = document.createElement("li");
+      li.innerHTML = `${m.name} — ${subify(m.formula)} → era <em>${m.correct}</em> (marcaste: ${m.chosen}).`;
+      elMistakes.appendChild(li);
+    });
+  } else {
+    elMistakes.innerHTML = "<li>🎉 ¡Perfecto! Sin errores.</li>";
+  }
+}
+
+// Iniciar
+start();
+</script>
+</body>
+</html>
